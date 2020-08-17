@@ -1,6 +1,9 @@
 # exclude extensionless files
-#*
-#!*.*
+*
+!*.*
 
 # 'normal' ignore rules
 .idea/
+*.o
+*.hi
+*.exe
