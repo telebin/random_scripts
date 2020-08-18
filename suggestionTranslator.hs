@@ -2,12 +2,13 @@
 
 module Main where
 
-import qualified Text.JSON as Json
+import Control.Applicative ((<|>))
 import Data.Either (fromRight)
+import Network.HTTP.Client
 import Snap.Core
 import Snap.Http.Server (quickHttpServe)
-import Snap.Util.FileServe (serveDirectory)
-import Control.Applicative ((<|>))
+
+import qualified Text.JSON as Json
 
 parseDiki :: Json.Result Json.JSValue -> Either String [String]
 parseDiki (Json.Error x) = Left x
