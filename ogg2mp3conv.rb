@@ -1,4 +1,3 @@
-require 'taglib2'
 require 'fileutils'
 
 OUTPUT = ARGV[0].end_with?('/') ? ARGV[0] : (ARGV[0] + '/')
@@ -10,27 +9,9 @@ def create_dirs(mp3)
 end
 
 def fire_ffmpeg(ogg, mp3)
-  cmd = ["ffmpeg", '-y', '-i', ogg, '-q:a', '3', mp3].join(' ')
+  cmd = ["ffmpeg", '-y', '-i', ogg, '-map_metadata', '0:s:0', '-q:a', '3', mp3].join(' ')
   puts "Converting #{ogg} to #{mp3} with cmd <#{cmd}>"
-  system("ffmpeg", '-y', '-i', ogg, '-q:a', '3', mp3)
-end
-
-def fill_tags(mp3, ogg)
-  puts "Copying tags to #{mp3}"
-  mp3.tag.artist = ogg.tag.artist
-  mp3.tag.album =  ogg.tag.album
-  mp3.tag.track =  ogg.tag.track
-  mp3.tag.title =  ogg.tag.title
-  mp3.tag.year  =  ogg.tag.year
-end
-
-def copy_tags(ogg, mp3)
-  TagLib::MPEG::File.open(mp3) do |m|
-    TagLib::Ogg::Vorbis::File.open(ogg) do |o|
-      fill_tags m, o
-      m.save(TagLib::MPEG::File::ID3v1 | TagLib::MPEG::File::ID3v2)
-    end
-  end
+  system("ffmpeg", '-y', '-i', ogg, '-map_metadata', '0:s:0', '-q:a', '3', mp3)
 end
 
 ILLEGAL_CHARS = '"*:<>?\|'.chars.map(&:ord)
@@ -45,7 +26,6 @@ def convert(ogg)
     puts "Failed converting #{ogg}"
     return false
   end
-  copy_tags ogg, mp3
 end
 
 unless OUTPUT
