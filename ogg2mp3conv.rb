@@ -1,7 +1,7 @@
 require 'taglib2'
 require 'fileutils'
 
-OUTPUT = ARGV[0]
+OUTPUT = ARGV[0].end_with?('/') ? ARGV[0] : (ARGV[0] + '/')
 
 def create_dirs(mp3)
   puts "Creating dirs for #{mp3}"
@@ -10,9 +10,9 @@ def create_dirs(mp3)
 end
 
 def fire_ffmpeg(ogg, mp3)
-  cmd = "ffmpeg -y -i $'#{ogg.gsub /'/, "\\\\'"}' -q:a 3 $'#{mp3.gsub /'/, "\\\\'"}'"
+  cmd = ["ffmpeg", '-y', '-i', ogg, '-q:a', '3', mp3].join(' ')
   puts "Converting #{ogg} to #{mp3} with cmd <#{cmd}>"
-  system(cmd)
+  system("ffmpeg", '-y', '-i', ogg, '-q:a', '3', mp3)
 end
 
 def fill_tags(mp3, ogg)
@@ -55,7 +55,7 @@ unless OUTPUT
 end
 
 all_oggs = Dir.glob('**/*.ogg')
-all_oggs.each_slice(all_oggs.count / 4) do |oggs|
+all_oggs.each_slice(all_oggs.count / 8) do |oggs|
   fork do
     puts "Fork here! Converting from <#{oggs.first}> to <#{oggs.last}>"
     oggs.each { |ogg| convert ogg }
