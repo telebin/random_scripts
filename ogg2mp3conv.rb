@@ -1,4 +1,4 @@
-require 'taglib'
+require 'taglib2'
 require 'fileutils'
 
 OUTPUT = ARGV[0]
