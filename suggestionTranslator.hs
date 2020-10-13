@@ -3,19 +3,23 @@
 module Main where
 
 import Control.Applicative ((<|>))
+import Data.ByteString.Lazy (toStrict)
 import Data.Either (fromRight)
+import Data.Maybe (fromJust, isJust)
 import Network.HTTP.Client
 import Snap.Core
 import Snap.Http.Server (quickHttpServe)
 
+import qualified Data.ByteString as BS
+import qualified Data.ByteString.Char8 as BSC
 import qualified Text.JSON as Json
 
-parseDiki :: Json.Result Json.JSValue -> Either String [String]
-parseDiki (Json.Error x) = Left x
-parseDiki (Json.Ok (Json.JSArray strs)) = Right $ map conv strs where
+parseDiki :: Json.Result Json.JSValue -> [String]
+parseDiki (Json.Error x) = [x]
+parseDiki (Json.Ok (Json.JSArray strs)) = map conv strs where
     conv (Json.JSString str) = Json.fromJSString str
     conv _ = "Just not expected"
-parseDiki _ = Left "Invalid JSON format"
+parseDiki _ = ["Invalid JSON format"]
 
 prepareAnswer :: String -> [String] -> String
 prepareAnswer q ans = Json.encode (q, ans)
@@ -24,27 +28,33 @@ dikiAnsw = "[\"hen\",\"Henryk\",\"Henry\",\"Henryka\",\"hence\",\"Henrietta\",\"
 sjpAnsw = "[{\"label\":\"<b>pen<\\/b>akordancja\",\"value\":\"penakordancja\",\"language\":[\"sjp\"]},{\"label\":\"<b>pen<\\/b>alista\",\"value\":\"penalista\",\"language\":[\"sjp\"]},{\"label\":\"<b>pen<\\/b>alistka\",\"value\":\"penalistka\",\"language\":[\"sjp\"]},{\"label\":\"<b>pen<\\/b>alizacja\",\"value\":\"penalizacja\",\"language\":[\"sjp\"]},{\"label\":\"<b>pen<\\/b>alny\",\"value\":\"penalny\",\"language\":[\"sjp\"]},{\"label\":\"<b>Pen<\\/b>ang\",\"value\":\"Penang\",\"language\":[\"sjp\"]},{\"label\":\"<b>Pen<\\/b>club\",\"value\":\"Penclub\",\"language\":[\"sjp\"]},{\"label\":\"<b>pen<\\/b>del\",\"value\":\"pendel\",\"language\":[\"sjp\"]},{\"label\":\"<b>Pen<\\/b>derecki\",\"value\":\"Penderecki\",\"language\":[\"sjp\"]},{\"label\":\"<b>pen<\\/b>dlowa\\u0107\",\"value\":\"pendlowa\\u0107\",\"language\":[\"sjp\"]}]"
 fdAnsw = "SAYT.Callback([\"mend\", [[\"mend\",3125],[\"mend (one's) fences\",1024],[\"mend (one's) pace\",1024],[\"mend (one's) ways\",1024],[\"mend bones\",2061],[\"mend fences\",1024],[\"mend her fences\",1024],[\"mend her pace\",1024],[\"mend her ways\",1024],[\"mend his fences\",1024]]])"
 
+get :: Manager -> String -> IO BS.ByteString
 get manager address = do
---   manager <- newManager defaultManagerSettings
   request <- parseRequest address
   response <- httpLbs request manager
-  responseBody response
+  return $ toStrict $ responseBody response
 
 main :: IO ()
-main = quickHttpServe translateSuggestion
+main = do
+    manager <- newManager defaultManagerSettings
+    quickHttpServe $ suggestionTranslatorRouter manager
 
-translateSuggestion :: Snap ()
-translateSuggestion =
-    route [ ("di/:searchString", dikiHandler)
+suggestionTranslatorRouter :: Manager -> Snap ()
+suggestionTranslatorRouter manager =
+    route [ ("di/:searchString", dikiHandler manager)
           , ("sjp/:searchString", sjpHandler)
           , ("fd/:searchString", fdHandler)
           ]
 
-dikiHandler :: Snap ()
-dikiHandler = do
+dikiHandler :: Manager -> Snap ()
+dikiHandler manager = do
     param <- getParam "searchString"
-    address = "https://www.diki.pl/dictionary/autocomplete?langpair=en%3A%3Apl&q=" ++ param
-    writeBS param
+    if isJust param then do
+        let toSearch = fromJust param
+            address = "https://www.diki.pl/dictionary/autocomplete?langpair=en%3A%3Apl&q=" ++ BSC.unpack toSearch
+        res <- get manager address
+        writeBS $ BSC.pack $ prepareAnswer toSearch (parseDiki $ Json.decode res)
+    else writeBS "searchString parameter missing"
 
 sjpHandler :: Snap ()
 sjpHandler = do
