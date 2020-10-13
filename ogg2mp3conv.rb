@@ -34,6 +34,7 @@ unless OUTPUT
   exit 1
 end
 
+# TODO add progress bar and put ffmpeg logs into files (one for each process)
 all_oggs = Dir.glob('**/*.ogg')
 all_oggs.each_slice(all_oggs.count / 8) do |oggs|
   fork do
