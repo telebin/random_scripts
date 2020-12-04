@@ -52,8 +52,8 @@ dikiHandler manager = do
     if isJust param then do
         let toSearch = fromJust param
             address = "https://www.diki.pl/dictionary/autocomplete?langpair=en%3A%3Apl&q=" ++ BSC.unpack toSearch
-        res <- get manager address
-        writeBS $ BSC.pack $ prepareAnswer toSearch (parseDiki $ Json.decode res)
+        res <- liftIO $ get manager address
+        writeBS $ BSC.pack $ prepareAnswer toSearch (parseDiki $ Json.decode $ BSC.unpack res)
     else writeBS "searchString parameter missing"
 
 sjpHandler :: Snap ()
