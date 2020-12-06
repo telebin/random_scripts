@@ -3,10 +3,12 @@
 module Main where
 
 import Control.Applicative ((<|>))
+import Control.Monad.IO.Class (liftIO)
 import Data.ByteString.Lazy (toStrict)
 import Data.Either (fromRight)
 import Data.Maybe (fromJust, isJust)
 import Network.HTTP.Client
+import Network.HTTP.Client.TLS
 import Snap.Core
 import Snap.Http.Server (quickHttpServe)
 
@@ -36,7 +38,7 @@ get manager address = do
 
 main :: IO ()
 main = do
-    manager <- newManager defaultManagerSettings
+    manager <- newManager tlsManagerSettings
     quickHttpServe $ suggestionTranslatorRouter manager
 
 suggestionTranslatorRouter :: Manager -> Snap ()
@@ -53,15 +55,15 @@ dikiHandler manager = do
         let toSearch = fromJust param
             address = "https://www.diki.pl/dictionary/autocomplete?langpair=en%3A%3Apl&q=" ++ BSC.unpack toSearch
         res <- liftIO $ get manager address
-        writeBS $ BSC.pack $ prepareAnswer toSearch (parseDiki $ Json.decode $ BSC.unpack res)
+        writeBS $ BSC.pack $ prepareAnswer (BSC.unpack toSearch) (parseDiki $ Json.decode $ BSC.unpack res)
     else writeBS "searchString parameter missing"
 
 sjpHandler :: Snap ()
 sjpHandler = do
     param <- getParam "searchString"
-    writeBS param
+    writeBS (fromJust param)
 
 fdHandler :: Snap ()
 fdHandler = do
     param <- getParam "searchString"
-    writeBS param
+    writeBS (fromJust param)
