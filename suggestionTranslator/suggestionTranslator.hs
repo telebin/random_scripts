@@ -5,6 +5,7 @@ module Main where
 import Control.Applicative ((<|>))
 import Control.Monad.IO.Class (liftIO)
 import Data.ByteString.Lazy (toStrict)
+import Data.ByteString.Builder (stringUtf8, toLazyByteString)
 import Data.Either (fromRight)
 import Data.Maybe (fromJust, isJust)
 import Network.HTTP.Client
@@ -12,7 +13,6 @@ import Network.HTTP.Client.TLS
 import Snap.Core
 import Snap.Http.Server (quickHttpServe)
 
-import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BSC
 import qualified Text.JSON as Json
 
@@ -38,7 +38,7 @@ parseSjp _ = ["Invalid JSON format"]
 prepareAnswer :: String -> [String] -> String
 prepareAnswer q ans = Json.encode (q, ans)
 
-get :: Manager -> String -> IO BS.ByteString
+get :: Manager -> String -> IO BSC.ByteString
 get manager address = do
   request <- parseRequest address
   response <- httpLbs request manager
@@ -66,8 +66,10 @@ translateRequest address translate manager = do
     param <- getParam "searchString"
     if isJust param then do
         let toSearch = fromJust param
+        logError $ BSC.concat ["Searching: ", toSearch, " with query: ", BSC.pack address]
         res <- liftIO $ get manager (address ++ BSC.unpack toSearch)
-        logError res
-        writeBS $ BSC.pack $ prepareAnswer (BSC.unpack toSearch) (translate $ Json.decode $ BSC.unpack res)
+        logError $ BSC.append "Got result:\n" res
+        writeBS $ utf8ByteString $ prepareAnswer (BSC.unpack toSearch) (translate $ Json.decode $ BSC.unpack res)
     else writeBS "searchString parameter missing"
-
+  where
+    utf8ByteString = toStrict . toLazyByteString . stringUtf8
